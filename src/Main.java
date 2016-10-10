@@ -18,9 +18,8 @@ public class Main {
         try {
             UrlCache cache = new UrlCache();
             cache.getLastModified(url[0]);
-            cache.getObject(url[0]);
-//            for (int i = 0; i < url.length; i++)
-//                cache.getObject(url[i]);
+            for (int i = 0; i < url.length; i++)
+                cache.getObject(url[i]);
 
         } catch (UrlCacheException e) {
             System.out.println("There was a problem: " + e.getMessage());

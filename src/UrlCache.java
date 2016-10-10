@@ -16,6 +16,9 @@ public class UrlCache {
     private String fileName = "catalog.txt";
     private FileReader fileReader;
     private BufferedReader bufferedReader;
+    private BufferedWriter bufferedWriter;
+    //private FileWriter fileWriter;
+    private File f;
 
     /**
      * Default constructor to initialize data structures used for caching/etc
@@ -44,7 +47,7 @@ public class UrlCache {
 
         } catch (FileNotFoundException e) {
             System.out.println("Could not open file. Creating catalog.txt");
-            File f = new File("catalog.txt");
+            f = new File("catalog.txt");
             try {
                 f.createNewFile();
             } catch (IOException e1) {
@@ -65,16 +68,14 @@ public class UrlCache {
      */
 	public void getObject(String url) throws UrlCacheException {
         try {
-            // If file does not exist, create new entry in text file
-            // and get last modified result
-            if (this.keyMap.containsKey(url)) {
-                System.out.println("Key is there! Will check if file is modified!");
-            }
-            byte[] byteArray = new byte[10*1024];
             String pathname = "";
             int port = 80;
+
             String[] pathNameConstructor = url.split("/");
             String[] hostname = pathNameConstructor[0].split(":");
+
+            Socket socket = new Socket(hostname[0], port);   // Create a new socket
+            PrintWriter outputStream = new PrintWriter(new DataOutputStream(socket.getOutputStream()));  // outputStream will send request
 
             if (pathNameConstructor[0].contains(":"))
                 port = Integer.parseInt(hostname[1]);
@@ -82,18 +83,57 @@ public class UrlCache {
             for (int i = 1; i < pathNameConstructor.length; i++)
                 pathname += "/" + pathNameConstructor[i];
 
-            Socket socket = new Socket(hostname[0], port);   // Create a new socket
-            PrintWriter outputStream = new PrintWriter(new DataOutputStream(
-                    socket.getOutputStream()));  // outputStream will send request
+            // If file does not exist, create new entry in text file
+            // and get last modified result
+            if (!this.keyMap.containsKey(url)) {
+                System.out.println("Key is already present! Will check if file is modified!");
+                outputStream.println("GET " + pathname + " HTTP/1.0");
+                outputStream.println("If-Modified-Since: " + keyMap.get(url));   // C-Get
+                outputStream.println();
+                outputStream.flush();
+            }
+            else {
+                outputStream.println("GET " + pathname + " HTTP/1.0");
+                outputStream.println();
+                outputStream.flush();
+            }
 
-            outputStream.println("GET " + pathname + " HTTP/1.0");
-            outputStream.println("If-Modified-Since: Thu, 06 Oct 2016 22:45:56 GMT");   // C-Get
-            outputStream.println();
-            outputStream.flush();
+          //  int read = socket.getInputStream().read(byteArray);
+            int off = 0;
+            int counter = 0;
+            String header = "";
+            byte[] headerReponse = new byte[2048];
+            try {
+                while(true) {
+                    socket.getInputStream().read(headerReponse,off, 1);
+                    char test = (char) (headerReponse[off]);
+                    header += test;
+                    off++;
 
-            int bytesRead = socket.getInputStream().read(byteArray);
+                    if(header.contains("\r\n\r\n")) {
+                        System.out.println("Header Recieved!");
+                        break;
+                    }
+                }
+                //  socket.getInputStream().read(objectBytes);
 
-            String s = new String(byteArray);
+                // Logic to get byte count from header response
+                String[] contentLength = header.split("Content-Length: ");
+                String[] contentLength2 = contentLength[1].split("\\r?\\n", 2);
+                int totalByteCount = Integer.parseInt(contentLength2[0]);
+                byte[] objectBytes = new byte[totalByteCount+1];
+                while (counter != totalByteCount) {
+                    socket.getInputStream().read(objectBytes,counter, 1);
+                    counter++;
+                }
+                FileOutputStream fos = new FileOutputStream(pathNameConstructor[pathNameConstructor.length-1]);
+                fos.write(objectBytes);
+                fos.close();
+
+            } catch (IOException e) {
+                System.out.println("Error: " + e.getMessage());
+            }
+            int e = 2;
 
         } catch (Exception e) {
             System.out.println("There was a problem: " + e.getMessage());
