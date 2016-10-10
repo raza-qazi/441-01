@@ -16,8 +16,6 @@ public class UrlCache {
     private String fileName = "catalog.txt";
     private FileReader fileReader;
     private BufferedReader bufferedReader;
-    private BufferedWriter bufferedWriter;
-    //private FileWriter fileWriter;
     private File f;
 
     /**
@@ -36,24 +34,21 @@ public class UrlCache {
             this.bufferedReader = new BufferedReader(fileReader);
 
             while ((line = this.bufferedReader.readLine()) != null) {
-                String b;
-                keyMap.put(line,b = this.bufferedReader.readLine());
-                System.out.println("Inserted: " + line + "\n" + b);
+                keyMap.put(line,this.bufferedReader.readLine());
+                System.out.println("Inserted: " + line);
             }
+            System.out.println("Completed initialization OF hash map...");
 
-            System.out.println("Completed initialization...");
-
-            //bufferedReader.close();
+            bufferedReader.close();
 
         } catch (FileNotFoundException e) {
-            System.out.println("Could not open file. Creating catalog.txt");
-            f = new File("catalog.txt");
+            System.out.println("Could not find file. Creating catalog.txt");
+            f = new File(fileName);
             try {
                 f.createNewFile();
             } catch (IOException e1) {
-                System.out.println("Unable to create catalog.txt: " + e1.getMessage());
+                System.out.println("Unable to create " + fileName + ": " + e1.getMessage());
             }
-
         } catch (IOException e) {
             System.out.println("IO error: " + e.getMessage());
         }
@@ -91,6 +86,12 @@ public class UrlCache {
                 outputStream.println("If-Modified-Since: " + keyMap.get(url));   // C-Get
                 outputStream.println();
                 outputStream.flush();
+
+                // TODO: Download header and check if its date is modified.
+
+                // TODO: if modified, redownload a new file
+
+                // TODO: else: do nothing
             }
             else {
                 outputStream.println("GET " + pathname + " HTTP/1.0");
@@ -98,37 +99,26 @@ public class UrlCache {
                 outputStream.flush();
             }
 
-          //  int read = socket.getInputStream().read(byteArray);
-            int off = 0;
-            int counter = 0;
+            int off = 0,counter = 0;
             String header = "";
             byte[] headerReponse = new byte[2048];
             try {
-                while(true) {
+                while(!header.contains("\r\n\r\n")) {
                     socket.getInputStream().read(headerReponse,off, 1);
-                    char test = (char) (headerReponse[off]);
+                    char test = (char) (headerReponse[off++]);
                     header += test;
-                    off++;
-
-                    if(header.contains("\r\n\r\n")) {
-                        System.out.println("Header Recieved!");
-                        break;
-                    }
                 }
-                //  socket.getInputStream().read(objectBytes);
-
                 // Logic to get byte count from header response
                 String[] contentLength = header.split("Content-Length: ");
                 String[] contentLength2 = contentLength[1].split("\\r?\\n", 2);
                 int totalByteCount = Integer.parseInt(contentLength2[0]);
                 byte[] objectBytes = new byte[totalByteCount+1];
-                while (counter != totalByteCount) {
-                    socket.getInputStream().read(objectBytes,counter, 1);
-                    counter++;
-                }
-                FileOutputStream fos = new FileOutputStream(pathNameConstructor[pathNameConstructor.length-1]);
-                fos.write(objectBytes);
-                fos.close();
+
+                while (counter != totalByteCount)
+                    socket.getInputStream().read(objectBytes,counter++, 1);
+
+                writeToFile(pathNameConstructor[pathNameConstructor.length-1],objectBytes);
+
 
             } catch (IOException e) {
                 System.out.println("Error: " + e.getMessage());
@@ -140,7 +130,12 @@ public class UrlCache {
         }
 
 	}
-	
+	// This method writes to file
+	public void writeToFile(String nameOFFile, byte[] byteArray) throws IOException {
+        FileOutputStream fos = new FileOutputStream(nameOFFile);
+        fos.write(byteArray);
+        fos.close();
+    }
     /**
      * Returns the Last-Modified time associated with the object specified by the parameter url.
 	 *
