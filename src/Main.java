@@ -7,10 +7,9 @@ import java.text.ParseException;
  * @version	3.1, Sep 30, 2016
  *
  */
-
 public class Main {
 
-	public static void main(String[] args) throws ParseException {
+	public static void main(String[] args) throws UrlCacheException {
 
 		// include whatever URL you like
 		// these are just some samples
@@ -24,7 +23,8 @@ public class Main {
 		try {
 			UrlCache cache = new UrlCache();
 
-			for (String anUrl : url) cache.getObject(anUrl);
+			//for (String i : url)
+			cache.getObject("localhost:2225/m.s");
 
 			System.out.println("Last-Modified for " + url[0] + " is: " + cache.getLastModified(url[0]));
 			cache.getObject(url[0]);
